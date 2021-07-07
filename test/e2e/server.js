@@ -86,7 +86,7 @@ export function getHitLogs(testId) {
     let contents;
     try {
       contents = fs.readFileSync(logFile, 'utf-8');
-    } catch(e) {
+    } catch (e) {
       process.stderr.write(e + '\n');
     }
     return contents.trim().split('\n')
@@ -131,7 +131,7 @@ export function bindLogAccessors(testId) {
     browser.waitUntil(hitCountEquals(1));
     assert.strictEqual(getHits()[0].empty, '1');
     removeHits();
-  }
+  };
 
   return {getHits, removeHits, hitCountEquals,
       hitCountIsAtLeast, assertNoHitsReceived};

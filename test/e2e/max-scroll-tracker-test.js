@@ -156,6 +156,37 @@ describe('maxScrollTracker', function() {
     log.assertNoHitsReceived();
   });
 
+  it('does not report cross-session even with corrupt store data', () => {
+    browser.execute(ga.run, 'require', 'maxScrollTracker');
+
+    browser.scroll(0, (PAGE_HEIGHT - WINDOW_HEIGHT) * .25);
+    browser.waitUntil(log.hitCountEquals(1));
+
+    corruptSession();
+
+    // Scrolling here should reset the session data and send a scroll event
+    // as if this were a new session.
+    browser.scroll(0, (PAGE_HEIGHT - WINDOW_HEIGHT) * .5);
+    browser.waitUntil(log.hitCountEquals(2));
+
+    browser.scroll(0, (PAGE_HEIGHT - WINDOW_HEIGHT) * .75);
+    browser.waitUntil(log.hitCountEquals(3));
+
+    const hits = log.getHits();
+    assert.strictEqual(hits[0].ec, 'Max Scroll');
+    assert.strictEqual(hits[0].ea, 'increase');
+    assert.strictEqual(hits[0].ev, '25');
+    assert.strictEqual(hits[0].el, '25');
+    assert.strictEqual(hits[1].ec, 'Max Scroll');
+    assert.strictEqual(hits[1].ea, 'increase');
+    assert.strictEqual(hits[1].ev, '50');
+    assert.strictEqual(hits[1].el, '50');
+    assert.strictEqual(hits[2].ec, 'Max Scroll');
+    assert.strictEqual(hits[2].ea, 'increase');
+    assert.strictEqual(hits[2].ev, '25');
+    assert.strictEqual(hits[2].el, '75');
+  });
+
   it('only sends new events after max scroll passes the thereshold', () => {
     browser.execute(ga.run, 'require', 'maxScrollTracker');
 
@@ -327,6 +358,18 @@ function expireSession() {
 
 
 /**
+ * Update the session ID and time to simulate a situation where the plugin's
+ * store data gets out of sync with the session store.
+ */
+function corruptSession() {
+  updateStoreData('autotrack:UA-12345-1:session', {
+    id: 'new-id',
+    isExpired: false,
+  });
+}
+
+
+/**
  * Manually set a value for store in all open windows/tabs.
  * @param {string} key
  * @param {!Object} value
@@ -344,7 +387,32 @@ function setStoreData(key, value) {
       window.localStorage.setItem(key, newValue);
       window.dispatchEvent(
           new StorageEvent('storage', {key, oldValue, newValue}));
-    } catch(err) {
+    } catch (err) {
+      // Do nothing
+    }
+  }, key, value);
+}
+
+
+/**
+ * Merges an object with the data in an existing store.
+ * @param {string} key
+ * @param {!Object} value
+ */
+function updateStoreData(key, value) {
+  browser.execute((key, value) => {
+    const oldValue = window.localStorage.getItem(key);
+    const newValue = JSON.stringify(Object.assign(JSON.parse(oldValue), value));
+
+    // IE11 doesn't support event constructors.
+    try {
+      // Set the value on localStorage so it triggers the storage event in
+      // other tabs. Also, manually dispatch the event in this tab since just
+      // writing to localStorage won't update the locally cached values.
+      window.localStorage.setItem(key, newValue);
+      window.dispatchEvent(
+          new StorageEvent('storage', {key, oldValue, newValue}));
+    } catch (err) {
       // Do nothing
     }
   }, key, value);

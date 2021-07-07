@@ -38,7 +38,7 @@ ga('require', 'urlChangeTracker', {
   }
 });
 ga('send', 'pageview', {
-  dimension1: 'pageload'
+  dimension1: 'page load'
 });
 ```
 
@@ -74,7 +74,7 @@ ga('require', 'eventTracker', {
 ```js
 ga('require', 'impressionTracker', {
   elements: ['cta'],
-  attributePrefix: 'data-ga'
+  attributePrefix: 'data-ga-'
 });
 ```
 
